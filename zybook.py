@@ -69,7 +69,6 @@ def solve_problem(token,zybook_code,problem):
 	    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
 	    'Content-Type': 'application/json',
 	    'Accept': 'application/json, text/javascript, */*; q=0.01',
-	    'Referer': 'https://learn.zybooks.com/zybook/QCCSCI355TeitelmanFall2018/chapter/1/section/1',
 	    'Connection': 'keep-alive',
 	}
 
