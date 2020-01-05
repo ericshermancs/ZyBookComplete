@@ -5,14 +5,31 @@ from pprint import pprint
 import json
 import hashlib
 import datetime
+from bs4 import BeautifulSoup as bs
+import urllib.parse
 
 
-def checksum(activity_id, ts, token):
+def checksum(activity_id, ts, token, buildkey):
 	md5 = hashlib.md5()
 	md5.update(f'content_resource/{activity_id}/activity'.encode('utf-8'))
 	md5.update(ts.encode('utf-8'))
 	md5.update(token.encode('utf-8'))
+	md5.update(buildkey.encode('utf-8'))
 	return md5.hexdigest()
+
+def get_buildkey():
+	"""Gets the "buildkey", a hexadecimal key included in the Ember app HTML (required 
+	to calculate the checksum)."""
+		
+	res = requests.get('https://learn.zybooks.com')
+	
+	soup = bs(res.text, features='lxml')
+	app_json = soup.find('meta', attrs={'name': 'zybooks-web/config/environment'})
+	
+	if not app_json:
+		raise Exception('Could not find the appropriate meta tag on the page.')
+	
+	return json.loads(urllib.parse.unquote(app_json['content']))['APP']['BUILDKEY']
 
 def login(email,password):
 	url = 'https://zyserver.zybooks.com/v1/signin'
@@ -51,7 +68,7 @@ def get_problems(token,zybook_code,chapter_number,section_number):
 	#pprint(r.json())
 	return r.json()
 
-def solve_problem(token,zybook_code,problem):
+def solve_problem(token,zybook_code,problem,buildkey):
 
 
 	activity_id = problem['id']
@@ -75,12 +92,12 @@ def solve_problem(token,zybook_code,problem):
 
 	now = datetime.datetime.now()
 	timestamp = now.strftime("%Y-%m-%dT%H:%M.000")
-	cs = checksum(activity_id, timestamp, token)
+	cs = checksum(activity_id, timestamp, token, buildkey)
 
 
 	parts = problem['parts']
 	if parts == 0:
-		data = {"part":0,"complete":True,"metadata":"{}","zybook_code":zybook_code,"auth_token": token ,"timestamp":timestamp,"__cs__": checksum(activity_id,timestamp,token)}
+		data = {"part":0,"complete":True,"metadata":"{}","zybook_code":zybook_code,"auth_token": token ,"timestamp":timestamp,"__cs__": checksum(activity_id,timestamp,token,buildkey)}
 			
 		pprint(data)
 
@@ -88,7 +105,7 @@ def solve_problem(token,zybook_code,problem):
 		print(r.text)
 	for part in range(parts):
 		
-		data = {"part":part,"complete":True,"metadata":"{}","zybook_code":zybook_code,"auth_token": token ,"timestamp":timestamp,"__cs__": checksum(activity_id,timestamp,token)}
+		data = {"part":part,"complete":True,"metadata":"{}","zybook_code":zybook_code,"auth_token": token ,"timestamp":timestamp,"__cs__": checksum(activity_id,timestamp,token,buildkey)}
 		
 		pprint(data)
 
@@ -103,6 +120,7 @@ def main():
 	password = getpass.getpass("Input password:")
 	result = login(email,password)
 	token = result['session']['auth_token']
+	buildkey = get_buildkey()
 	user_id = result['user']['user_id']
 	books = get_books(token,user_id)
 	total_types = set()
@@ -120,7 +138,7 @@ def main():
 					problems = get_problems(token,zybook_code,chapter_number,section_number)
 					for problem in problems['section']['content_resources']:
 	
-						solve_problem(token,zybook_code,problem)
+						solve_problem(token,zybook_code,problem,buildkey)
 					
 	
 if __name__ == '__main__':
